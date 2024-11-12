@@ -27,43 +27,67 @@ class Asteroids():
     explodingTtl = 180
 
     def __init__(self):
-        self.stage = Stage('Atari Asteroids', (1024, 768))
+        self.stage = Stage('Atari Asteroids', (800, 600))
         self.paused = False
         self.showingFPS = False
         self.frameAdvance = False
         self.gameState = "attract_mode"
         self.rockList = []
-        self.createRocks(3)
         self.saucer = None
         self.secondsCount = 1
         self.score = 0
         self.ship = None
         self.lives = 0
+        self.selected_difficulty = 0
+        self.difficulty = "Fácil"  # Valor predeterminado para la dificultad
+        self.background_image = pygame.image.load('../res/space_background.jpg')
+        screen_width = 800
+        screen_height = 450
+        self.background_image = pygame.transform.scale(self.background_image, (screen_width, screen_height))
+        self.rock_speed = 1.0  # Velocidad predeterminada para los asteroides
+        self.ship_speed = 1.0  # Velocidad predeterminada para la nave
+
+
 
     def initialiseGame(self):
         self.gameState = 'playing'
-        [self.stage.removeSprite(sprite)
-         for sprite in self.rockList]  # clear old rocks
+        [self.stage.removeSprite(sprite) for sprite in self.rockList]
         if self.saucer is not None:
             self.killSaucer()
+
         self.startLives = 5
         self.createNewShip()
         self.createLivesList()
         self.score = 0
         self.rockList = []
-        self.numRocks = 3
-        self.nextLife = 10000
 
+        # Configuración según la dificultad
+        if self.difficulty == "Fácil":
+            self.numRocks = 3
+            self.rock_speed = 1
+            self.ship_speed = 1
+        elif self.difficulty == "Medio":
+            self.numRocks = 5
+            self.rock_speed = 1.5
+            self.ship_speed = 1.2
+        elif self.difficulty == "Difícil":
+            self.numRocks = 7
+            self.rock_speed = 2
+            self.ship_speed = 1.5
+
+        self.nextLife = 10000
         self.createRocks(self.numRocks)
         self.secondsCount = 1
 
+
     def createNewShip(self):
         if self.ship:
-            [self.stage.spriteList.remove(debris)
-             for debris in self.ship.shipDebrisList]
+            [self.stage.spriteList.remove(debris) for debris in self.ship.shipDebrisList]
         self.ship = Ship(self.stage)
+        self.ship.speed = self.ship_speed  
         self.stage.addSprite(self.ship.thrustJet)
         self.stage.addSprite(self.ship)
+
 
     def createLivesList(self):
         self.lives += 1
@@ -82,12 +106,12 @@ class Asteroids():
 
     def createRocks(self, numRocks):
         for _ in range(0, numRocks):
-            position = Vector2d(random.randrange(-10, 10),
-                                random.randrange(-10, 10))
-
+            position = Vector2d(random.randrange(-10, 10), random.randrange(-10, 10))
             newRock = Rock(self.stage, position, Rock.largeRockType)
+            newRock.speed = self.rock_speed  
             self.stage.addSprite(newRock)
             self.rockList.append(newRock)
+
 
     def playGame(self):
 
@@ -140,6 +164,7 @@ class Asteroids():
 
     def playing(self):
         if self.lives == 0:
+            self.stopAllSounds()
             self.gameState = 'attract_mode'
         else:
             self.processKeys()
@@ -180,29 +205,55 @@ class Asteroids():
         self.numRocks += 1
         self.createRocks(self.numRocks)
 
-    # move this kack somewhere else!
     def displayText(self):
-        font1 = pygame.font.Font('../res/Hyperspace.otf', 50)
-        font2 = pygame.font.Font('../res/Hyperspace.otf', 20)
-        font3 = pygame.font.Font('../res/Hyperspace.otf', 30)
+        # Escalar la imagen de fondo para que ocupe toda la pantalla
+        self.background_image = pygame.transform.scale(self.background_image, (self.stage.width, self.stage.height))
+        self.stage.screen.blit(self.background_image, (0, 0))
 
-        titleText = font1.render('Asteroids', True, (180, 180, 180))
-        titleTextRect = titleText.get_rect(centerx=self.stage.width/2)
-        titleTextRect.y = self.stage.height/2 - titleTextRect.height*2
+        # Configurar y mostrar el título en un tamaño más grande y en "negrita"
+        font1 = pygame.font.Font('../res/Hyperspace.otf', 80)  # Tamaño grande para el título
+        titleText = font1.render('Asteroids', True, (255, 255, 255))  # Color blanco brillante
+        titleTextRect = titleText.get_rect(centerx=self.stage.width / 2, y=50)
+
+        # Simular negrita para el título dibujándolo varias veces con desplazamiento
+        for offset in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            self.stage.screen.blit(titleText, titleTextRect.move(offset))
         self.stage.screen.blit(titleText, titleTextRect)
 
-        keysText = font2.render(
-            '(C) 1979 Atari INC.', True, (255, 255, 255))
-        keysTextRect = keysText.get_rect(centerx=self.stage.width/2)
-        keysTextRect.y = self.stage.height - keysTextRect.height - 20
-        self.stage.screen.blit(keysText, keysTextRect)
+        # Configurar y mostrar los botones de dificultad en un tamaño más grande y en "negrita"
+        font3 = pygame.font.Font('../res/Hyperspace.otf', 50)  # Tamaño grande para los botones
 
-        instructionText = font3.render(
-            'Press start to Play', True, (200, 200, 200))
-        instructionTextRect = instructionText.get_rect(
-            centerx=self.stage.width/2)
-        instructionTextRect.y = self.stage.height/2 - instructionTextRect.height
-        self.stage.screen.blit(instructionText, instructionTextRect)
+        # Renderizar y simular negrita para cada botón de dificultad
+        easy_text = font3.render('Fácil', True, (255, 255, 255) if self.selected_difficulty == 0 else (200, 200, 200))
+        medium_text = font3.render('Medio', True, (255, 255, 255) if self.selected_difficulty == 1 else (200, 200, 200))
+        hard_text = font3.render('Difícil', True, (255, 255, 255) if self.selected_difficulty == 2 else (200, 200, 200))
+
+        # Aumentar la separación horizontal entre los botones
+        easy_rect = easy_text.get_rect(centerx=self.stage.width / 2 - 200, centery=self.stage.height - 80)
+        medium_rect = medium_text.get_rect(centerx=self.stage.width / 2, centery=self.stage.height - 80)
+        hard_rect = hard_text.get_rect(centerx=self.stage.width / 2 + 200, centery=self.stage.height - 80)
+
+        # Dibujar los botones con simulación de negrita
+        for offset in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            self.stage.screen.blit(easy_text, easy_rect.move(offset))
+            self.stage.screen.blit(medium_text, medium_rect.move(offset))
+            self.stage.screen.blit(hard_text, hard_rect.move(offset))
+
+        # Dibujar el texto principal de cada botón para que quede encima y más definido
+        self.stage.screen.blit(easy_text, easy_rect)
+        self.stage.screen.blit(medium_text, medium_rect)
+        self.stage.screen.blit(hard_text, hard_rect)
+
+    def stopAllSounds(self):
+        stopSound("thrust")
+        stopSound("explode1")
+        stopSound("explode2")
+        stopSound("explode3")
+        stopSound("fire")
+        stopSound("lsaucer")
+        stopSound("ssaucer")
+        stopSound("extralife")
+
 
     def displayScore(self):
         font1 = pygame.font.Font('../res/Hyperspace.otf', 30)
@@ -220,7 +271,6 @@ class Asteroids():
             self.stage.screen.blit(pausedText, textRect)
             pygame.display.update()
 
-    # Should move the ship controls into the ship class
     def input(self, events):
         self.frameAdvance = False
         for event in events:
@@ -229,38 +279,43 @@ class Asteroids():
             elif event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
                     sys.exit(0)
-                if self.gameState == 'playing':
+
+                # Cambiar dificultad en el menú de inicio
+                if self.gameState == 'attract_mode':
+                    if event.key == K_LEFT:
+                        self.selected_difficulty = (self.selected_difficulty - 1) % 3
+                        playSound("fire")  # Reproduce sonido al moverse
+                    elif event.key == K_RIGHT:
+                        self.selected_difficulty = (self.selected_difficulty + 1) % 3
+                        playSound("fire")  # Reproduce sonido al moverse
+                    elif event.key == K_RETURN:
+                        # Asignar el nivel de dificultad según el botón seleccionado
+                        if self.selected_difficulty == 0:
+                            self.difficulty = "Fácil"
+                        elif self.selected_difficulty == 1:
+                            self.difficulty = "Medio"
+                        elif self.selected_difficulty == 2:
+                            self.difficulty = "Difícil"
+                        self.initialiseGame()  # Iniciar el juego
+
+                # Controles en el estado de juego "playing"
+                elif self.gameState == 'playing':
                     if event.key == K_SPACE:
-                        self.ship.fireBullet()
+                        if self.ship:  # Asegurarse de que la nave exista
+                            self.ship.fireBullet()  # Disparar el arma de la nave
                     elif event.key == K_b:
-                        self.ship.fireBullet()
+                        if self.ship:
+                            self.ship.fireBullet()
                     elif event.key == K_h:
-                        self.ship.enterHyperSpace()
-                elif self.gameState == 'attract_mode':
-                    # Start a new game
-                    if event.key == K_RETURN:
-                        self.initialiseGame()
-
+                        if self.ship:
+                            self.ship.enterHyperSpace()
+                    elif event.key == K_m:
+                        self.returnToMenu() 
+                    
+                # Otros controles generales
                 if event.key == K_p:
-                    if self.paused:  # (is True)
-                        self.paused = False
-                    else:
-                        self.paused = True
+                    self.paused = not self.paused
 
-                if event.key == K_j:
-                    if self.showingFPS:  # (is True)
-                        self.showingFPS = False
-                    else:
-                        self.showingFPS = True
-
-                if event.key == K_f:
-                    pygame.display.toggle_fullscreen()
-
-                # if event.key == K_k:
-                    # self.killShip()
-            elif event.type == KEYUP:
-                if event.key == K_o:
-                    self.frameAdvance = True
 
     def processKeys(self):
         key = pygame.key.get_pressed()
@@ -395,6 +450,30 @@ class Asteroids():
             playSound("extralife")
             self.nextLife += 10000
             self.addLife(self.lives)
+    
+    def returnToMenu(self):
+        self.stopAllSounds()
+        self.gameState = "attract_mode"
+
+        # Limpiar elementos de juego
+        if self.ship:
+            self.stage.removeSprite(self.ship)
+            self.stage.removeSprite(self.ship.thrustJet)
+            self.ship = None
+
+        for rock in self.rockList:
+            self.stage.removeSprite(rock)
+        self.rockList.clear()
+
+        if self.saucer:
+            self.stage.removeSprite(self.saucer)
+            self.saucer = None
+
+        # Reiniciar el puntaje y otros contadores si es necesario
+        self.score = 0
+        self.lives = 0
+        self.secondsCount = 1
+
 
 
 # Script to run the game
